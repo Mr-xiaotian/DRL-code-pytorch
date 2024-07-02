@@ -190,6 +190,7 @@ def evaluate_policy(env, agent):
         while not done:
             a = agent.choose_action(s, deterministic=True)  # We use the deterministic policy during the evaluating
             s_, r, done, truncated, _ = env.step(a)
+            done = done or truncated
             episode_reward += r
             s = s_
         evaluate_reward += episode_reward
@@ -207,7 +208,7 @@ def reward_adapter(r, env_index):
 
 
 if __name__ == '__main__':
-    env_name = ['Pendulum-v1', 'BipedalWalker-v3', 'HalfCheetah-v2', 'Hopper-v2', 'Walker2d-v2']
+    env_name = ['Pendulum-v1', 'BipedalWalker-v3', 'HalfCheetah-v2', 'Hopper-v2', 'Walker2d-v2', 'Ant-v2']
     env_index = 0
     env = gym.make(env_name[env_index])
     env_evaluate = gym.make(env_name[env_index], render_mode="human")  # When evaluating the policy, we need to rebuild an environment
@@ -234,7 +235,7 @@ if __name__ == '__main__':
     agent = SAC(state_dim, action_dim, max_action)
     replay_buffer = ReplayBuffer(state_dim, action_dim)
     # Build a tensorboard
-    writer = SummaryWriter(log_dir='runs/SAC/SAC_env_{}_number_{}_seed_{}'.format(env_name[env_index], number, seed))
+    writer = SummaryWriter(log_dir='8.SAC/runs/SAC/SAC_env_{}_number_{}_seed_{}'.format(env_name[env_index], number, seed))
 
     max_train_steps = 3e6  # Maximum number of training steps
     random_steps = 25e3  # Take the random actions in the beginning for the better exploration
@@ -248,12 +249,14 @@ if __name__ == '__main__':
         episode_steps = 0
         done = False
         while not done:
+            # print(episode_steps)
             episode_steps += 1
             if total_steps < random_steps:  # Take the random actions in the beginning for the better exploration
                 a = env.action_space.sample()
             else:
                 a = agent.choose_action(s)
             s_, r, done, truncated, _ = env.step(a)
+            done = done or truncated
             r = reward_adapter(r, env_index)  # Adjust rewards for better performance
             # When dead or win or reaching the max_episode_steps, done will be Ture, we need to distinguish them;
             # dw means dead or win,there is no next state s';
@@ -273,10 +276,10 @@ if __name__ == '__main__':
                 evaluate_num += 1
                 evaluate_reward = evaluate_policy(env_evaluate, agent)
                 evaluate_rewards.append(evaluate_reward)
-                print("evaluate_num:{} \t evaluate_reward:{}".format(evaluate_num, evaluate_reward))
-                writer.add_scalar('step_rewards_{}'.format(env_name[env_index]), evaluate_reward, global_step=total_steps)
+                print(f"evaluate_num:{evaluate_num} \t evaluate_reward:{evaluate_reward}")
+                writer.add_scalar(f'step_rewards_{env_name[env_index]}', evaluate_reward, global_step=total_steps)
                 # Save the rewards
                 if evaluate_num % 10 == 0:
-                    np.save('./data_train/SAC_env_{}_number_{}_seed_{}.npy'.format(env_name[env_index], number, seed), np.array(evaluate_rewards))
+                    np.save(f'8.SAC/data_train/SAC_env_{env_name[env_index]}_number_{number}_seed_{seed}.npy', np.array(evaluate_rewards))
 
             total_steps += 1
