@@ -4,7 +4,6 @@ import torch.nn as nn
 import torch.nn.functional as F
 import numpy as np
 from torch.utils.tensorboard import SummaryWriter
-from moviepy.editor import ImageSequenceClip
 
 
 class Policy(nn.Module):
@@ -87,10 +86,10 @@ def evaluate_policy(env, agent):
 
 
 if __name__ == '__main__':
-    env_name = ['CartPole-v0', 'CartPole-v1']
-    env_index = 1  # 环境索引
-    env = gym.make(env_name[env_index], render_mode="human")
-    env_evaluate = gym.make(env_name[env_index])  # 评估时需要重新构建环境
+    env_name = ['CartPole-v1', 'Acrobot-v1']
+    env_index = 0  # 环境索引
+    env = gym.make(env_name[env_index])
+    env_evaluate = gym.make(env_name[env_index], render_mode="human")  # 评估时需要重新构建环境
     number = 1
     seed = 500
 
@@ -110,7 +109,7 @@ if __name__ == '__main__':
     agent = REINFORCE(state_dim, action_dim)
     writer = SummaryWriter(log_dir='1.REINFORCE/runs/REINFORCE/REINFORCE_env_{}_number_{}_seed_{}'.format(env_name[env_index], number, seed))  # 构建tensorboard
 
-    max_train_steps = 1e4  # 最大训练步数
+    max_train_steps = 1e5  # 最大训练步数
     evaluate_freq = 1e3  # 每隔evaluate_freq步评估一次策略
     evaluate_num = 0  # 记录评估次数
     evaluate_rewards = []  # 记录评估奖励
@@ -123,11 +122,6 @@ if __name__ == '__main__':
         s, _ = env.reset()
         done = False
         while not done:
-            if total_steps % 50 == 0:  # 每10步渲染一次
-                frame = env.render()  # 获取环境的渲染帧
-                if frame is not None:
-                    frames.append(frame)
-
             episode_steps += 1
             a = agent.choose_action(s, deterministic=False)
             s_, r, done, truncated, _ = env.step(a)
@@ -137,6 +131,7 @@ if __name__ == '__main__':
 
             # 每隔evaluate_freq步评估一次策略
             if (total_steps + 1) % evaluate_freq == 0:
+                env_evaluate.render()
                 evaluate_num += 1
                 evaluate_reward = evaluate_policy(env_evaluate, agent)
                 evaluate_rewards.append(evaluate_reward)
@@ -147,11 +142,6 @@ if __name__ == '__main__':
                             np.array(evaluate_rewards))
 
             total_steps += 1
-
-        # 保存视频
-        if frames:
-            clip = ImageSequenceClip(frames, fps=30)
-            clip.write_videofile('cartpole_training.mp4', codec='libx264')
 
         # 一个episode结束后进行更新
         agent.learn()

@@ -184,12 +184,12 @@ def evaluate_policy(env, agent):
     times = 3  # Perform three evaluations and calculate the average
     evaluate_reward = 0
     for _ in range(times):
-        s = env.reset()
+        s, _ = env.reset()
         done = False
         episode_reward = 0
         while not done:
             a = agent.choose_action(s, deterministic=True)  # We use the deterministic policy during the evaluating
-            s_, r, done, _ = env.step(a)
+            s_, r, done, truncated, _ = env.step(a)
             episode_reward += r
             s = s_
         evaluate_reward += episode_reward
@@ -210,13 +210,13 @@ if __name__ == '__main__':
     env_name = ['Pendulum-v1', 'BipedalWalker-v3', 'HalfCheetah-v2', 'Hopper-v2', 'Walker2d-v2']
     env_index = 0
     env = gym.make(env_name[env_index])
-    env_evaluate = gym.make(env_name[env_index])  # When evaluating the policy, we need to rebuild an environment
+    env_evaluate = gym.make(env_name[env_index], render_mode="human")  # When evaluating the policy, we need to rebuild an environment
     number = 1
     seed = 0
     # Set random seed
-    env.seed(seed)
+    env.reset(seed=seed)
     env.action_space.seed(seed)
-    env_evaluate.seed(seed)
+    env_evaluate.reset(seed=seed)
     env_evaluate.action_space.seed(seed)
     np.random.seed(seed)
     torch.manual_seed(seed)
@@ -244,7 +244,7 @@ if __name__ == '__main__':
     total_steps = 0  # Record the total steps during the training
 
     while total_steps < max_train_steps:
-        s = env.reset()
+        s, _ = env.reset()
         episode_steps = 0
         done = False
         while not done:
@@ -253,7 +253,7 @@ if __name__ == '__main__':
                 a = env.action_space.sample()
             else:
                 a = agent.choose_action(s)
-            s_, r, done, _ = env.step(a)
+            s_, r, done, truncated, _ = env.step(a)
             r = reward_adapter(r, env_index)  # Adjust rewards for better performance
             # When dead or win or reaching the max_episode_steps, done will be Ture, we need to distinguish them;
             # dw means dead or win,there is no next state s';
