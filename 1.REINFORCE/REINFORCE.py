@@ -4,7 +4,7 @@ import torch.nn as nn
 import torch.nn.functional as F
 import numpy as np
 from torch.utils.tensorboard import SummaryWriter
-from moviepy.editor import ImageSequenceClip
+# from moviepy.editor import ImageSequenceClip
 
 
 class Policy(nn.Module):
@@ -24,7 +24,7 @@ class REINFORCE(object):
         self.state_dim = state_dim
         self.action_dim = action_dim
         self.hidden_width = 64  # The number of neurons in hidden layers of the neural network
-        self.lr = 4e-4  # learning rate
+        self.lr = 1e-3  # learning rate
         self.GAMMA = 0.99  # discount factor
         self.episode_s, self.episode_a, self.episode_r = [], [], []
 
@@ -53,19 +53,43 @@ class REINFORCE(object):
             g = self.GAMMA * g + r
             G.insert(0, g)
 
+        G = torch.tensor(G, dtype=torch.float)
+        G = (G - G.mean()) / (G.std() + 1e-5)  # Normalize returns
+
         for t in range(len(self.episode_r)):
             s = torch.unsqueeze(torch.tensor(self.episode_s[t], dtype=torch.float), 0)
             a = self.episode_a[t]
             g = G[t]
 
             a_prob = self.policy(s).flatten()
-            policy_loss = -pow(self.GAMMA, t) * g * torch.log(a_prob[a])
+            policy_loss = -g * torch.log(a_prob[a])
             self.policy_optimizer.zero_grad()
             policy_loss.backward()
             self.policy_optimizer.step()
 
         # Clean the buffer
         self.episode_s, self.episode_a, self.episode_r = [], [], []
+
+
+class CustomMountainCarEnv(gym.Wrapper):
+    def __init__(self, env):
+        super(CustomMountainCarEnv, self).__init__(env)
+    
+    def step(self, action):
+        state, reward, done, truncated, info = self.env.step(action)
+        
+        # # 自定义奖励：鼓励小车向右爬行
+        position, velocity = state
+        reward = position
+        # if velocity > 0:
+        #     reward = (position + 0.5) * -1 # 根据位置增加奖励
+        # else:
+        #     reward = (position + 0.5) * 1 # 根据位置增加奖励
+        # if position >= 0.5:
+        #     reward += 10  # 到达目标位置给予额外奖励
+        
+        return state, reward, done, truncated, info
+
 
 
 def evaluate_policy(env, agent):
@@ -81,16 +105,23 @@ def evaluate_policy(env, agent):
             done = done or truncated
             episode_reward += r
             s = s_
+            # MountainCar 终止条件
+            if s_[0] >= 0.5:
+                done = True
+            else:
+                done = done or truncated
         evaluate_reward += episode_reward
 
     return int(evaluate_reward / times)
 
 
 if __name__ == '__main__':
-    env_name = ['CartPole-v0', 'CartPole-v1']
-    env_index = 1  # 环境索引
-    env = gym.make(env_name[env_index], render_mode="human")
+    env_name = ['CartPole-v0', 'CartPole-v1', 'MountainCar-v0']
+    env_index = 2  # 环境索引
+    env = gym.make(env_name[env_index])
+    env = CustomMountainCarEnv(env)  # 使用自定义奖励的环境
     env_evaluate = gym.make(env_name[env_index])  # 评估时需要重新构建环境
+    env_evaluate = gym.wrappers.TimeLimit(env_evaluate)
     number = 1
     seed = 500
 
@@ -99,6 +130,11 @@ if __name__ == '__main__':
     env_evaluate.reset(seed=seed)
     np.random.seed(seed)
     torch.manual_seed(seed)
+
+    # 增加 max_episode_steps
+    max_episode_steps = 200  # 例如，将最大步数增加到 500
+    env._max_episode_steps = max_episode_steps
+    env_evaluate._max_episode_steps = max_episode_steps
 
     state_dim = env.observation_space.shape[0]
     action_dim = env.action_space.n
@@ -110,7 +146,7 @@ if __name__ == '__main__':
     agent = REINFORCE(state_dim, action_dim)
     writer = SummaryWriter(log_dir='1.REINFORCE/runs/REINFORCE/REINFORCE_env_{}_number_{}_seed_{}'.format(env_name[env_index], number, seed))  # 构建tensorboard
 
-    max_train_steps = 1e4  # 最大训练步数
+    max_train_steps = 1e6  # 最大训练步数
     evaluate_freq = 1e3  # 每隔evaluate_freq步评估一次策略
     evaluate_num = 0  # 记录评估次数
     evaluate_rewards = []  # 记录评估奖励
@@ -123,10 +159,8 @@ if __name__ == '__main__':
         s, _ = env.reset()
         done = False
         while not done:
-            if total_steps % 50 == 0:  # 每10步渲染一次
-                frame = env.render()  # 获取环境的渲染帧
-                if frame is not None:
-                    frames.append(frame)
+            # if total_steps % 1000 == 0:  # 每10步渲染一次
+            #     env.render()
 
             episode_steps += 1
             a = agent.choose_action(s, deterministic=False)
@@ -139,6 +173,7 @@ if __name__ == '__main__':
             if (total_steps + 1) % evaluate_freq == 0:
                 evaluate_num += 1
                 evaluate_reward = evaluate_policy(env_evaluate, agent)
+                # env_evaluate.render()
                 evaluate_rewards.append(evaluate_reward)
                 print(f"evaluate_num:{evaluate_num} \t evaluate_reward:{evaluate_reward} \t")
                 writer.add_scalar(f'step_rewards_{env_name[env_index]}', evaluate_reward, global_step=total_steps)
@@ -147,11 +182,11 @@ if __name__ == '__main__':
                             np.array(evaluate_rewards))
 
             total_steps += 1
-
-        # 保存视频
-        if frames:
-            clip = ImageSequenceClip(frames, fps=30)
-            clip.write_videofile('cartpole_training.mp4', codec='libx264')
+            # MountainCar 终止条件
+            if s_[0] >= 0.5:
+                done = True
+            else:
+                done = done or truncated
 
         # 一个episode结束后进行更新
         agent.learn()
