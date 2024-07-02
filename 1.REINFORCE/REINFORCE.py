@@ -121,7 +121,7 @@ if __name__ == '__main__':
     env = gym.make(env_name[env_index])
     env = CustomMountainCarEnv(env)  # 使用自定义奖励的环境
     env_evaluate = gym.make(env_name[env_index])  # 评估时需要重新构建环境
-    env_evaluate = gym.wrappers.TimeLimit(env_evaluate)
+    env_evaluate = CustomMountainCarEnv(env_evaluate)
     number = 1
     seed = 500
 
