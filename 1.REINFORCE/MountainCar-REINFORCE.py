@@ -4,6 +4,7 @@ import torch.nn as nn
 import torch.nn.functional as F
 import numpy as np
 from torch.distributions import Categorical
+from torch.utils.tensorboard import SummaryWriter
 
 # 定义策略网络
 class PolicyNet(nn.Module):
@@ -83,6 +84,7 @@ def train(max_reward = -float('inf')):
     max_episodes = 1000
     max_steps = 500
     better_model_path = ''
+    writer = SummaryWriter(log_dir='1.REINFORCE/runs/REINFORCE/REINFORCE_env_MountainCar')  # 构建tensorboard
     
     for episode in range(max_episodes):
         state, _ = env.reset()
@@ -96,6 +98,7 @@ def train(max_reward = -float('inf')):
             # 3. abs(next_state[1]) - abs(state[1])
             # 4. sign_compare(action - 1, state[1])
             reward = abs(next_state[0] + 0.5) - abs(state[0] + 0.5)
+            writer.add_scalar(f'step_rewards_MountainCar', reward, global_step=episode)
             
             rewards.append(reward)
             states.append(state)
@@ -139,12 +142,12 @@ def test(model_path, num_episodes=10):
             action_probs = probs.squeeze().detach().numpy()
             action = np.random.choice(action_dim, p=action_probs)
             
-            # if state[1] > 0:
-            #     action = 2
-            # elif state[1] < 0:
-            #     action = 0
-            # else:
-            #     action = 1
+            if state[1] > 0:
+                action = 2
+            elif state[1] < 0:
+                action = 0
+            else:
+                action = 1
             next_state, reward, done, truncated, info = env.step(action)
             reward = abs(next_state[0] + 0.5) - abs(state[0] + 0.5)
             episode_reward += reward
@@ -161,6 +164,6 @@ def test(model_path, num_episodes=10):
 if __name__ == '__main__':
     model_path = '1.REINFORCE/models/model_0.49790.pth'
 
-    model_path = train()
+    # model_path = train()
     print(model_path)
-    # test(model_path)
+    test(model_path)
