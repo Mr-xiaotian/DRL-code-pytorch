@@ -74,7 +74,7 @@ def sign_compare(a, b):
 
 
 def train(max_reward = -float('inf')):
-    env = gym.make('MountainCar-v0', max_episode_steps=None) #render_mode = 'human', 
+    env = gym.make('MountainCar-v0', max_episode_steps=None)
     state_dim = env.observation_space.shape[0]
     action_dim = env.action_space.n
 
@@ -95,7 +95,7 @@ def train(max_reward = -float('inf')):
             # 2. abs(next_state[0] + 0.5) - abs(state[0] + 0.5)
             # 3. abs(next_state[1]) - abs(state[1])
             # 4. sign_compare(action - 1, state[1])
-            reward = 0.5 - next_state[0]
+            reward = abs(next_state[0] + 0.5) - abs(state[0] + 0.5)
             
             rewards.append(reward)
             states.append(state)
@@ -115,7 +115,7 @@ def train(max_reward = -float('inf')):
         # 渲染环境
         if (episode + 1) % 100 == 0:
             # env.render()  # 渲染环境
-            print(f'Episode {episode+1}/{max_episodes}, Total Reward: {total_reward}')
+            print(f'Episode {episode+1}/{max_episodes}, Total Reward: {total_reward:.5f}')
 
     return better_model_path
             
@@ -146,6 +146,7 @@ def test(model_path, num_episodes=10):
             # else:
             #     action = 1
             next_state, reward, done, truncated, info = env.step(action)
+            reward = abs(next_state[0] + 0.5) - abs(state[0] + 0.5)
             episode_reward += reward
             state = next_state
             
@@ -158,8 +159,8 @@ def test(model_path, num_episodes=10):
     print(f'Average Reward: {sum(total_rewards) / num_episodes}')
 
 if __name__ == '__main__':
-    model_path = '1.REINFORCE/models/model_60.00000.pth'
+    model_path = '1.REINFORCE/models/model_0.49790.pth'
 
     model_path = train()
     print(model_path)
-    test(model_path)
+    # test(model_path)
