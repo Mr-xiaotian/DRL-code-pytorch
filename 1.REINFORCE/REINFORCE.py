@@ -19,7 +19,7 @@ class PolicyNet(nn.Module):
 
 # 定义REINFORCE算法
 class REINFORCE:
-    def __init__(self, state_dim, action_dim, lr=0.001, gamma=0.99):
+    def __init__(self, state_dim, action_dim, lr=0.05, gamma=0.99):
         self.policy_net = PolicyNet(state_dim, action_dim)
         self.optimizer = torch.optim.Adam(self.policy_net.parameters(), lr=lr)
         self.gamma = gamma
@@ -57,9 +57,13 @@ class REINFORCE:
         loss.backward()
         self.optimizer.step()
 
-# 主函数
+    def save_model(self, path):
+        torch.save(self.policy_net.state_dict(), path)
+
+
+
 if __name__ == "__main__":
-    env = gym.make('MountainCar-v0')
+    env = gym.make('MountainCar-v0', max_episode_steps=None) #render_mode = 'human', 
     state_dim = env.observation_space.shape[0]
     action_dim = env.action_space.n
 
@@ -67,12 +71,14 @@ if __name__ == "__main__":
 
     max_episodes = 1000
     max_steps = 200
+    max_reward = 0
     for episode in range(max_episodes):
         state, _ = env.reset()
         rewards, states, actions = [], [], []
         for step in range(max_steps):
             action = agent.choose_action(state)
-            next_state, reward, done, _ = env.step(action)
+            next_state, reward, done, truncated, _ = env.step(action)
+            done = done or truncated
             rewards.append(reward)
             states.append(state)
             actions.append(action)
@@ -80,5 +86,15 @@ if __name__ == "__main__":
             if done:
                 break
         agent.learn(rewards, states, actions)
+        total_reward = sum(rewards)
+
+        if total_reward > max_reward:
+            # 保存模型
+            agent.save_model(f'models/model_{total_reward}.pth')
+            max_reward = total_reward
+        
+        # 渲染环境
         if (episode + 1) % 100 == 0:
-            print(f'Episode {episode+1}/{max_episodes}, Total Reward: {sum(rewards)}')
+            # env.render()  # 渲染环境
+            print(f'Episode {episode+1}/{max_episodes}, Total Reward: {total_reward}')
+            
