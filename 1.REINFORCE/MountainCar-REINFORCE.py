@@ -156,8 +156,8 @@ def test(model_path, num_episodes=10):
     print(f'Average Reward: {sum(total_rewards) / num_episodes}')
 
 if __name__ == '__main__':
-    model_path = '1.REINFORCE/models/model_0.49790.pth'
+    model_path = '1.REINFORCE/models/model_trybest.pth'
 
-    model_path = train()
+    # model_path = train()
     print(model_path)
-    # test(model_path)
+    test(model_path)
