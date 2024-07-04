@@ -117,8 +117,9 @@ def train(max_reward = -float('inf')):
         
         # 渲染环境
         if (episode + 1) % 100 == 0:
-            # env.render()  # 渲染环境
             print(f'Episode {episode+1}/{max_episodes}, Total Reward: {total_reward:.5f}')
+            np.save(f'1.REINFORCE/data_train/REINFORCE_env_MountainCar-v0_number_10_seed_none.npy', 
+                    np.array(rewards))
 
     return better_model_path
             
@@ -156,8 +157,8 @@ def test(model_path, num_episodes=10):
     print(f'Average Reward: {sum(total_rewards) / num_episodes}')
 
 if __name__ == '__main__':
-    model_path = '1.REINFORCE/models/model_trybest.pth'
+    model_path = '1.REINFORCE/models/model_best_0.pth'
 
-    # model_path = train()
+    model_path = train(0.5)
     print(model_path)
-    test(model_path)
+    # test(model_path)
