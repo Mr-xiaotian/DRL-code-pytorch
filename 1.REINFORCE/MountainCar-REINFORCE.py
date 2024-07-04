@@ -141,13 +141,7 @@ def test(model_path, num_episodes=10):
             probs = policy_net(temp_state)
             action_probs = probs.squeeze().detach().numpy()
             action = np.random.choice(action_dim, p=action_probs)
-            
-            if state[1] > 0:
-                action = 2
-            elif state[1] < 0:
-                action = 0
-            else:
-                action = 1
+
             next_state, reward, done, truncated, info = env.step(action)
             reward = abs(next_state[0] + 0.5) - abs(state[0] + 0.5)
             episode_reward += reward
@@ -164,6 +158,6 @@ def test(model_path, num_episodes=10):
 if __name__ == '__main__':
     model_path = '1.REINFORCE/models/model_0.49790.pth'
 
-    # model_path = train()
+    model_path = train()
     print(model_path)
-    test(model_path)
+    # test(model_path)
